@@ -63,52 +63,45 @@ GROUP BY MONTH(Order_Date)
 --	4.	Write a query to return for each user the time elapsed between the first purchasing and the third purchasing, in ascending order by Customer ID.
 --	4.	Her kullanıcı için ilk satın alma ile üçüncü satın alma arasında geçen süreyi Müşteri Kimliğine göre artan sırada döndüren bir sorgu yazın
 
-WITH Customer_Orders AS (
-	SELECT	Cust_ID,
-			ROW_NUMBER() OVER(PARTITION BY Cust_ID ORDER BY Order_Date) AS Order_Number,
-			Order_Date
-	FROM e_commerce_data
+WITH T1 AS (
+			SELECT	Cust_ID, Ord_ID, Order_Date,
+					DENSE_RANK() OVER(PARTITION BY Cust_ID ORDER BY Order_Date) AS Order_Number
+			FROM	e_commerce_data
+), T2 AS (
+			SELECT	Cust_ID, Ord_ID, Order_Date,
+					DENSE_RANK() OVER(PARTITION BY Cust_ID ORDER BY Order_Date) AS Order_Number
+			FROM	e_commerce_data
 )
-SELECT	A.Cust_ID,
-		DATEDIFF(day, A.Order_Date, B.Order_Date) AS Days_Between_First_And_Third_Order
-FROM	Customer_Orders A
-		JOIN Customer_Orders B
-		ON A.Cust_ID = B.Cust_ID
-WHERE	A.Order_Number = 1 
-		AND B.Order_Number = 3
-ORDER BY A.Cust_ID;
+SELECT	DISTINCT T1.Cust_ID,
+		DATEDIFF(day, T1.Order_Date, T2.Order_Date) AS Days_Between_First_And_Third_Order
+FROM	T1 INNER JOIN T2
+		ON T1.Cust_ID = T2.Cust_ID
+WHERE	T1.Order_Number = 1 AND T2.Order_Number = 3
+ORDER BY 1
 
 
 --	5.	Write a query that returns customers who purchased both product 11 and product 14, as well as the ratio of these products to the total number of products purchased by the customer.
 --	5.	Hem 11. ürünü hem de 14. ürünü satın alan müşterileri ve bu ürünlerin müşteri tarafından satın alınan toplam ürün sayısına oranını döndüren bir sorgu yazın
 
-WITH CustomerProductCounts AS (
-	SELECT	Cust_ID, COUNT(Prod_ID) AS TotalProducts
-	FROM	e_commerce_data					-- HER MÜŞTERİNİN SATIN ALDIĞI ÜRÜN SAYISI
-	GROUP BY Cust_ID
-),
-Product11Customers AS (						
-	SELECT	DISTINCT Cust_ID, COUNT(Cust_ID) Product11
-	FROM	e_commerce_data					-- 11. ÜRÜNÜ ALAN MÜŞTERİLER
-	WHERE	Prod_ID = 'Prod_11'
-	GROUP BY Cust_ID
-),
-Product14Customers AS (						
-	SELECT	DISTINCT Cust_ID, COUNT(Cust_ID) Product14
-	FROM	e_commerce_data					-- 14. ÜRÜNÜ ALAN MÜŞTERİLER
-	WHERE	Prod_ID = 'Prod_14'
-	GROUP BY Cust_ID
+	
+WITH T1 AS (
+SELECT	Cust_ID,
+		SUM(Order_Quantity) total_orders,
+		SUM(CASE WHEN Prod_ID = 'Prod_11' THEN Order_Quantity ELSE 0 END) P11_quantity,
+		SUM(CASE WHEN Prod_ID = 'Prod_14' THEN Order_Quantity  ELSE 0 END) P14_quantity
+FROM e_commerce_data
+GROUP BY
+		Cust_ID
+HAVING
+		SUM(CASE WHEN Prod_ID = 'Prod_11' THEN 1 END) IS NOT NULL
+		AND
+		SUM(CASE WHEN Prod_ID = 'Prod_14' THEN 1 END) IS NOT NULL
 )
-SELECT	X.Cust_ID, SUM(Y.Product14+X.Product11) AS Pro_11_14, Z.TotalProducts,
-		CAST(SUM(Y.Product14 + X.Product11) AS FLOAT) / Z.TotalProducts AS Products_Ratio
-FROM	Product11Customers X
-		JOIN Product14Customers Y
-		ON X.Cust_ID = Y.Cust_ID
-		JOIN CustomerProductCounts Z
-		ON X.Cust_ID = Z.Cust_ID
-GROUP BY X.Cust_ID, Z.TotalProducts;
+SELECT	*, CAST(1.0*P11_quantity/total_orders AS DECIMAL(3,2))  AS P11_RATIO ,
+		CAST(1.0*P14_quantity/total_orders AS DECIMAL(3,2))AS P14_RATIO
+FROM T1
 
---	
+--
 --	Customer Segmentation (Müşteri Segmentasyonu)
 --	Categorize customers based on their frequency of visits (Müşterileri ziyaret sıklıklarına göre kategorize edin)
 
