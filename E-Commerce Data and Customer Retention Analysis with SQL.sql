@@ -13,7 +13,7 @@ USE ecommerce;
 --	1.	Find the top 3 customers who have the maximum count of orders.
 --	1.	En fazla sipariş sayısına sahip ilk 3 müşteriyi bulun
 
-SELECT TOP 3 Cust_ID, Customer_Name, COUNT (DISTINCT Ord_ID) AS count_orders
+SELECT	TOP 3 Cust_ID, Customer_Name, COUNT (DISTINCT Ord_ID) AS count_orders
 FROM		e_commerce_data
 GROUP BY	Cust_ID, Customer_Name
 ORDER BY	count_orders DESC
@@ -22,9 +22,11 @@ ORDER BY	count_orders DESC
 --	2.	Find the customer whose order took the maximum time to get shipping.
 --	2.	Siparişinin kargoya verilmesi en fazla zaman alan müşteriyi bulun
 
-SELECT TOP 1 Ord_ID, Customer_Name, DaysTakenForShipping
-FROM		e_commerce_data
-ORDER BY	3 DESC
+SELECT	Ord_ID, Customer_Name, DaysTakenForShipping
+FROM	e_commerce_data
+WHERE	DaysTakenForShipping = (SELECT	MAX(DaysTakenForShipping)
+								FROM	e_commerce_data
+								)
 
 
 --	3.	Count the total number of unique customers in January and how many of them came back again in the each one months of 2011.
@@ -125,7 +127,7 @@ GROUP BY YEAR(Order_Date), MONTH(Order_Date), Cust_ID
 
 
 --	3.	For each visit of customers, create the previous or next month of the visit as a separate column
---	3.	Müşterilerin her ziyareti için, ziyaretin bir önceki veya bir sonraki ayını ayrı bir sütun olarak oluşturun.
+--	3.	Müşterilerin her ziyareti için, ziyaretin bir önceki veya "bir sonraki" ayını ayrı bir sütun olarak oluşturun.
 
 CREATE VIEW Customer_Next_Order_Month AS
 SELECT	Cust_ID, [Year], [Month],
